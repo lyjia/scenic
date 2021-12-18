@@ -57,8 +57,8 @@ module Scenic
       # @param sql_definition The SQL schema for the view.
       #
       # @return [void]
-      def create_view(name, sql_definition)
-        execute "CREATE VIEW #{quote_table_name(name)} AS #{sql_definition};"
+      def create_view(name, sql_definition, with_options: nil)
+        execute "CREATE VIEW #{quote_table_name(name)}#{" WITH #{with_options}" if with_options} #{sql_definition};"
       end
 
       # Updates a view in the database.
@@ -77,9 +77,9 @@ module Scenic
       # @param sql_definition The SQL schema for the updated view.
       #
       # @return [void]
-      def update_view(name, sql_definition)
+      def update_view(name, sql_definition, with_options: nil)
         drop_view(name)
-        create_view(name, sql_definition)
+        create_view(name, sql_definition, with_options: with_options)
       end
 
       # Replaces a view in the database using `CREATE OR REPLACE VIEW`.
@@ -132,13 +132,18 @@ module Scenic
       #   in use does not support materialized views.
       #
       # @return [void]
-      def create_materialized_view(name, sql_definition, no_data: false)
+      def create_materialized_view(name, sql_definition, no_data: false, with_options: nil)
         raise_unless_materialized_views_supported
+
+        if no_data
+          with_options ||= ""
+          with_options << " NO DATA"
+        end
 
         execute <<-SQL
   CREATE MATERIALIZED VIEW #{quote_table_name(name)} AS
   #{sql_definition.rstrip.chomp(';')}
-  #{'WITH NO DATA' if no_data};
+  #{" WITH #{with_options}" if with_options}
         SQL
       end
 
@@ -160,12 +165,12 @@ module Scenic
       #   in use does not support materialized views.
       #
       # @return [void]
-      def update_materialized_view(name, sql_definition, no_data: false)
+      def update_materialized_view(name, sql_definition, no_data: false, with_options: nil)
         raise_unless_materialized_views_supported
 
         IndexReapplication.new(connection: connection).on(name) do
           drop_materialized_view(name)
-          create_materialized_view(name, sql_definition, no_data: no_data)
+          create_materialized_view(name, sql_definition, no_data: no_data, with_options: with_options)
         end
       end
 
