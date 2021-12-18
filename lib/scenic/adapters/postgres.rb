@@ -58,7 +58,7 @@ module Scenic
       #
       # @return [void]
       def create_view(name, sql_definition, with_options: nil)
-        execute "CREATE VIEW #{quote_table_name(name)}#{" WITH #{with_options}" if with_options} #{sql_definition};"
+        execute "CREATE VIEW #{quote_table_name(name)}#{" WITH (#{with_options})" if with_options} #{sql_definition};"
       end
 
       # Updates a view in the database.
@@ -135,15 +135,12 @@ module Scenic
       def create_materialized_view(name, sql_definition, no_data: false, with_options: nil)
         raise_unless_materialized_views_supported
 
-        if no_data
-          with_options ||= ""
-          with_options << " NO DATA"
-        end
-
         execute <<-SQL
-  CREATE MATERIALIZED VIEW #{quote_table_name(name)} AS
-  #{sql_definition.rstrip.chomp(';')}
-  #{" WITH #{with_options}" if with_options}
+          CREATE MATERIALIZED VIEW #{quote_table_name(name)} 
+            #{"WITH (#{with_options})" if with_options}
+            AS
+              #{sql_definition.rstrip.chomp(';')}
+            #{'WITH NO DATA' if no_data};
         SQL
       end
 
